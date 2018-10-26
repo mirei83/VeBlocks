@@ -72,108 +72,100 @@ while true; do
   fi
 
 
-## /Variables #########################################################################################
-echo "Initiate Blockimport from "$Block_Start" to $Block_End"
-sleep 2
+  ## /Variables #########################################################################################
+  echo "Initiate Blockimport from "$Block_Start" to $Block_End"
+  sleep 2
 
 
+  for ((Blocknumber=$Block_Start; Blocknumber <= $Block_End; Blocknumber++)); do
+    blockinfos=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/blocks/$Blocknumber" -H  "accept: application/json" | \
+    jq --raw-output '.number,.id,.size,.timestamp,.gasLimit,.gasUsed,.totalScore'`)
+  
+    echo "################################################################################################"
+    echo ""
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Using Node  : "$VECHAIN_NODE   
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Blocknumber : "${blockinfos[0]}
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: BlockID     : "${blockinfos[1]}
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Blocksize   : "${blockinfos[2]}
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: gasUsed     : "${blockinfos[5]}
+    echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: totalScore  : "${blockinfos[6]}
 
-
-for ((Blocknumber=$Block_Start; Blocknumber <= $Block_End; Blocknumber++)); do
-  blockinfos=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/blocks/$Blocknumber" -H  "accept: application/json" | \
-  jq --raw-output '.number,.id,.size,.timestamp,.gasLimit,.gasUsed,.totalScore'`)
-
-  echo "################################################################################################"
-  echo ""
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Using Node  : "$VECHAIN_NODE   
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Blocknumber : "${blockinfos[0]}
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: BlockID     : "${blockinfos[1]}
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: Blocksize   : "${blockinfos[2]}
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: gasUsed     : "${blockinfos[5]}
-  echo "$SHOW_Net/B${blockinfos[0]}/Tx/Cx: totalScore  : "${blockinfos[6]}
-
-  if [ $DoMySQL == "Y" ]
+    if [ $DoMySQL == "Y" ]
     then
       mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< "INSERT IGNORE INTO $SQL_Blocks (block_number, block_id, block_size, block_time, gasLimit, gasUsed, totalScore) 
       VALUES ('${blockinfos[0]}', '${blockinfos[1]}', '${blockinfos[2]}', FROM_UNIXTIME('${blockinfos[3]}'), '${blockinfos[4]}', '${blockinfos[5]}', '${blockinfos[6]}');"
-  fi
-
-  blocktx=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/blocks/$Blocknumber" -H  "accept: application/json" | \
-  jq --raw-output '.transactions[]'`)
-
-
-  transaction=0
-  for i in "${blocktx[@]}"
-  do
-    ### write TX info 
-    txinfos=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i" -H  "accept: application/json" | jq --raw-output '.gasPriceCoef,.gas,.origin'`)
-
-    echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: TxID         :" $i
-    echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: GasCoef      :" ${txinfos[0]}
-    echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Gas          :" ${txinfos[1]}
-    echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Origin       :" ${txinfos[2]}
-  
-    if [ $DoMySQL == "Y" ]
-    then
-      mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< "INSERT IGNORE INTO $SQL_Tx (tx_id, block_id, origin, gascoef, gas) VALUES ('$i', '${blockinfos[1]}', '${txinfos[2]}', '${txinfos[0]}', '${txinfos[1]}');"
     fi
 
-    ### / write TX Info
+    blocktx=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/blocks/$Blocknumber" -H  "accept: application/json" | \
+    jq --raw-output '.transactions[]'`)
 
-    ### get Clauses
-    txclauses=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i" -H  "accept: application/json" | jq -c '.clauses[]'`)
 
-    clause=0
-    SQL_Input=()
-    for n in "${txclauses[@]}"
+    transaction=0
+    for i in "${blocktx[@]}"
     do
-      arr=(${n//\"/ })
-      to=0
-      to=${arr[3]}
-      data=${arr[11]}
-      #amount=${arr[7]}
-      
-      if [ ${arr[7]} == "0x0" ]
-        then
-          amount=0
-      else
-          amount_hex=`python -c "print int('${arr[7]}', 16)"`
-          amount=`bc -l <<< "$amount_hex /1000000000000000000"`
+      ### write TX info 
+      txinfos=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i" -H  "accept: application/json" | jq --raw-output '.gasPriceCoef,.gas,.origin'`)
+
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: TxID         :" $i
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: GasCoef      :" ${txinfos[0]}
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Gas          :" ${txinfos[1]}
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Origin       :" ${txinfos[2]}
+  
+      if [ $DoMySQL == "Y" ]
+      then
+        mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< "INSERT IGNORE INTO $SQL_Tx (tx_id, block_id, origin, gascoef, gas) VALUES ('$i', '${blockinfos[1]}', '${txinfos[2]}', '${txinfos[0]}', '${txinfos[1]}');"
       fi
 
-      #amount_hex=`python -c "print int('${arr[7]}', 16)"`
-      #amount=`bc -l <<< "$amount_hex /1000000000000000000"`
+      ### / write TX Info
+
+      ### get Clauses
+      txclauses=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i" -H  "accept: application/json" | jq -c '.clauses[]'`)
+
+      clause=0
+      SQL_Input=()
+      for n in "${txclauses[@]}"
+      do
+        arr=(${n//\"/ })
+        to=0
+        to=${arr[3]}
+        data=${arr[11]}
       
-      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: To           :" $to
-      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: Value        :" $amount
-      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: Data         :" ${data:0:52}...
+        if [ ${arr[7]} == "0x0" ]
+          then
+            amount=0
+        else
+            amount_hex=`python -c "print int('${arr[7]}', 16)"`
+            amount=`bc -l <<< "$amount_hex /1000000000000000000"`
+        fi
 
+        echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: To           :" $to
+        echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: Value        :" $amount
+        echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/C$clause: Data         :" ${data:0:52}...
 
-      SQL_Input+=("INSERT IGNORE INTO $SQL_Clauses (tx_id, to_Address, amount, data) VALUES ('$i', '$to', '$amount', '$data');")
+        SQL_Input+=("INSERT IGNORE INTO $SQL_Clauses (tx_id, to_Address, amount, data) VALUES ('$i', '$to', '$amount', '$data');")
       
-      clause=$((clause + 1))
-      ### Process Clauses Done
-    done
+        clause=$((clause + 1))
+        ### Process Clauses Done
+      done
 
-     if [ $DoMySQL == "Y" ]
+      if [ $DoMySQL == "Y" ]
         then
           ### Import the whole SQL_Input Array at one. This is so awesome.
           mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< ${SQL_Input[@]}
       fi
-    ## Import transaction done
-    transaction=$((transaction + 1))
-  done
+      ## Import transaction done
+      transaction=$((transaction + 1))
+    done
 
-  if (( $Blocknumber % 500 == 0 ))
+    if (( $Blocknumber % 500 == 0 ))
       then
         echo "SLEEP 1 Sec: Now is the time to safely interrupt!"
         sleep 1
-
-  fi
-  ## Import block done
-done
+    fi
+    ## Import block done
+  done
   ## Import blockrange done
-echo ""
-echo "Wait for new blocks."
-sleep 7
+  echo ""
+  echo "Wait for new blocks."
+  sleep 7
 done
