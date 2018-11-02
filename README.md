@@ -58,3 +58,6 @@ Start the import for Testnet (additional Testnet-Node needed)
 ./VeBlocks/VeBlocks_import.sh test
 ```
 
+5.) Query your Database
+------------------------
+Some commands to start with are located in "example.sql".

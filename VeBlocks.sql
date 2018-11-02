@@ -2,6 +2,8 @@
 CREATE DATABASE VeBlocks;
 USE VeBlocks;
 
+
+
 ### create Tables for TestnetBlocks
 CREATE TABLE testnet_blocks (
     block_number int,
@@ -22,6 +24,10 @@ CREATE TABLE testnet_transactions (
     origin VARCHAR(66),
     gascoef int,
     gas int,
+    gaspayer VARCHAR(66),
+    gaspayed int,
+    reward int,
+    reverted boolean,
     primary key (tx_number),
     UNIQUE KEY IDX_txid (tx_id),
     FOREIGN KEY (block_id)
@@ -60,11 +66,17 @@ CREATE TABLE mainnet_transactions (
     origin VARCHAR(66),
     gascoef int,
     gas int,
+    gaspayer VARCHAR(66),
+    gaspayed int,
+    reward int,
+    reverted boolean,
     primary key (tx_number),
     UNIQUE KEY IDX_txid (tx_id),
     FOREIGN KEY (block_id)
     REFERENCES mainnet_blocks(block_id)
 ) ENGINE=InnoDB;
+
+
 
 CREATE TABLE mainnet_clauses (
     clause_number int auto_increment not null,
@@ -81,4 +93,3 @@ CREATE TABLE mainnet_clauses (
 ### Create User Vechain and grand access from localhost and local Network
 CREATE USER 'vechain'@'localhost' IDENTIFIED BY 'VeChainToDaMoon';
 GRANT INSERT, SELECT, UPDATE ON VeBlocks.* TO 'vechain'@'localhost';
-### GRANT INSERT, SELECT, UPDATE ON VeBlocks.* TO 'vechain'@'192.168.1.%'  IDENTIFIED BY 'VeChainToDaMoon';
