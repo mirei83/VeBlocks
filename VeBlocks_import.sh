@@ -100,20 +100,34 @@ while true; do
     jq --raw-output '.transactions[]'`)
 
 
-    transaction=0
+        transaction=0
     for i in "${blocktx[@]}"
     do
       ### write TX info 
       txinfos=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i" -H  "accept: application/json" | jq --raw-output '.gasPriceCoef,.gas,.origin'`)
+      txreceipt=(`curl -s -X GET "$(eval "echo $VECHAIN_NODE")/transactions/$i/receipt" -H  "accept: application/json" | jq --raw-output '.gasPayer,.paid,.reward,.reverted'`)
+      
+      reward_hex=`python -c "print int('${txreceipt[2]}', 16)"`
+      reward=`bc -l <<< "$reward_hex /1000000000000000000"`
+      
+      vthor_hex=`python -c "print int('${txreceipt[1]}', 16)"`
+      vthor=`bc -l <<< "$vthor_hex /1000000000000000000"`
+      
 
       echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: TxID         :" $i
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Origin       :" ${txinfos[2]}
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Reverted     :" ${txreceipt[3]}
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Gas Payer    :" ${txreceipt[0]}
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Gas Reward   :" $reward
       echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: GasCoef      :" ${txinfos[0]}
       echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Gas          :" ${txinfos[1]}
-      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: Origin       :" ${txinfos[2]}
-  
+      echo "$SHOW_Net/B${blockinfos[0]}/T$transaction/Cx: VTHO Payed   :" $vthor
+      
+      
       if [ $DoMySQL == "Y" ]
       then
-        mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< "INSERT IGNORE INTO $SQL_Tx (tx_id, block_id, origin, gascoef, gas) VALUES ('$i', '${blockinfos[1]}', '${txinfos[2]}', '${txinfos[0]}', '${txinfos[1]}');"
+        mysql -N -h $MySQL_host -u $MySQL_user -p$MySQL_pass --silent -D $MySQL_db <<< "INSERT IGNORE INTO $SQL_Tx (tx_id, block_id, origin, gascoef, gas, gaspayer, gaspayed, reward, reverted) 
+        VALUES ('$i', '${blockinfos[1]}', '${txinfos[2]}', '${txinfos[0]}', '${txinfos[1]}', '${txreceipt[0]}', '$vthor', '$reward', '${txreceipt[3]}');"
       fi
 
       ### / write TX Info
